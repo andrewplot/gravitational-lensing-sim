@@ -110,23 +110,34 @@ def hash_direction(d):
 
 
 def starfield(ray_dir):
-    """
-    Simple procedural starfield.
-    """
     d = normalize(ray_dir)
 
-    # dark blue space gradient
-    t = 0.5 * (d[1] + 1.0)
-    base = (1.0 - t) * np.array([0.01, 0.01, 0.03]) + t * np.array([0.0, 0.0, 0.01])
+    # dark background
+    base = np.array([0.0, 0.0, 0.02], dtype=np.float32)
 
-    # sparse stars
-    h = hash_direction(np.floor(d * 250.0))
-    if h > 0.997:
-        brightness = 0.7 + 0.3 * hash_direction(np.floor(d * 500.0))
-        star_color = brightness * np.array([1.0, 1.0, 1.0])
-        return np.clip(base + star_color, 0, 1)
+    # spherical coordinates
+    theta = np.arctan2(d[2], d[0])      # [-pi, pi]
+    phi = np.arccos(np.clip(d[1], -1, 1))  # [0, pi]
 
-    return base
+    # higher-resolution UV-like coordinates
+    u = theta / (2 * np.pi) + 0.5
+    v = phi / np.pi
+
+    # discrete cell
+    gx = int(u * 1200)
+    gy = int(v * 600)
+
+    # deterministic pseudo-random hash
+    h = np.sin(gx * 127.1 + gy * 311.7) * 43758.5453
+    h = h - np.floor(h)
+
+    color = base.copy()
+
+    if h > 0.9985:
+        brightness = 0.7 + 0.3 * ((np.sin(gx * 269.5 + gy * 183.3) * 12345.678) % 1)
+        color += brightness * np.array([1.0, 1.0, 1.0], dtype=np.float32)
+
+    return np.clip(color, 0, 1)
 
 
 # ----------------------------
