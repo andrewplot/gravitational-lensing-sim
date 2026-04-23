@@ -108,35 +108,56 @@ def hash_direction(d):
     x = np.sin(np.dot(d, np.array([12.9898, 78.233, 37.719])))
     return x - np.floor(x)
 
-
 def starfield(ray_dir):
     d = normalize(ray_dir)
-
-    # dark background
     base = np.array([0.0, 0.0, 0.02], dtype=np.float32)
 
     # spherical coordinates
-    theta = np.arctan2(d[2], d[0])      # [-pi, pi]
-    phi = np.arccos(np.clip(d[1], -1, 1))  # [0, pi]
+    theta = np.arctan2(d[2], d[0])          # [-pi, pi]
+    phi = np.arccos(np.clip(d[1], -1, 1))   # [0, pi]
 
-    # higher-resolution UV-like coordinates
     u = theta / (2 * np.pi) + 0.5
     v = phi / np.pi
 
-    # discrete cell
-    gx = int(u * 1200)
-    gy = int(v * 600)
+    # star grid resolution
+    grid_w = 400
+    grid_h = 200
 
-    # deterministic pseudo-random hash
-    h = np.sin(gx * 127.1 + gy * 311.7) * 43758.5453
-    h = h - np.floor(h)
+    gx = int(u * grid_w)
+    gy = int(v * grid_h)
 
-    color = base.copy()
+    fu = u * grid_w - gx   # local coord in cell [0,1)
+    fv = v * grid_h - gy
 
-    if h > 0.9985:
-        brightness = 0.7 + 0.3 * ((np.sin(gx * 269.5 + gy * 183.3) * 12345.678) % 1)
-        color += brightness * np.array([1.0, 1.0, 1.0], dtype=np.float32)
+    # deterministic hash helpers
+    def hash2(x, y):
+        h = np.sin(x * 127.1 + y * 311.7) * 43758.5453
+        return h - np.floor(h)
 
+    def hash1(x, y):
+        h = np.sin(x * 269.5 + y * 183.3) * 12345.6789
+        return h - np.floor(h)
+
+    # only some cells contain stars
+    star_prob = hash2(gx, gy)
+    if star_prob < 0.985:
+        return base
+
+    # random star center inside the cell
+    su = hash2(gx + 17, gy + 29)
+    sv = hash2(gx + 53, gy + 71)
+
+    dx = fu - su
+    dy = fv - sv
+    dist2 = dx * dx + dy * dy
+
+    # gaussian-like falloff
+    brightness = np.exp(-dist2 * 250.0)
+
+    # random star intensity
+    intensity = 0.6 + 0.4 * hash1(gx, gy)
+
+    color = base + brightness * intensity * np.array([1.0, 1.0, 1.0], dtype=np.float32)
     return np.clip(color, 0, 1)
 
 
