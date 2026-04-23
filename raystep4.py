@@ -139,8 +139,10 @@ def starfield(ray_dir):
         return h - np.floor(h)
 
     # only some cells contain stars
+    density = 0.975 #lesser = more stars
+
     star_prob = hash2(gx, gy)
-    if star_prob < 0.985:
+    if star_prob < density:
         return base
 
     # random star center inside the cell
